@@ -1,5 +1,13 @@
+// Get URL parameters
+const queryStringRegEx = query => new RegExp(`[?|&]${query}=([^&]*)`);
+const url = window.location.search;
+let matches = url.match(queryStringRegEx("data"));
+const data_group = matches ? matches[1] : "อนาคตใหม่";
+
 const width = document.getElementsByTagName('body')[0].offsetWidth;
-const height = document.getElementsByTagName('body')[0].offsetHeight;;
+const height = document.getElementsByTagName('body')[0].offsetHeight;
+
+const tooltip = d3.select('#tooltip');
 
 const drag = simulation => {
   function dragstarted(d) {
@@ -7,18 +15,15 @@ const drag = simulation => {
     d.fx = d.x;
     d.fy = d.y;
   }
-  
   function dragged(d) {
     d.fx = d3.event.x;
     d.fy = d3.event.y;
   }
-  
   function dragended(d) {
     if (!d3.event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
   }
-  
   return d3.drag()
     .on("start", dragstarted)
     .on("drag", dragged)
@@ -41,12 +46,15 @@ const drag = simulation => {
 const node_radius = 5;
 const link_length = 10;
 
-const color = d3.scaleOrdinal(d3.schemeCategory10);
+const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#F5FFE0`, `#FF7A00`, `#1A171B`])
+  .unknown(`#000000`);
+const color_reaction = d3.scaleOrdinal(d3.range(1, 3), [`#07ABAB`, `#FF4036`])
+  .unknown(`#000000`);
 
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
 
-d3.csv("data/event_จักรวาลปลดแอก.csv").then(data => {
+d3.csv(`data/event_${data_group}.csv`).then(data => {
   let nodes = [];
   let links = [];
   data.forEach((d, i) => {
@@ -80,17 +88,18 @@ d3.csv("data/event_จักรวาลปลดแอก.csv").then(data => {
     .data(links)
     .join("line")
       .attr("stroke-width", node_radius/2)
-      .attr("stroke", d => color(d.value - 1));
+      .attr("stroke", d => color_reaction(d.value));
   
   const node = svg.append("g")
     .selectAll("circle")
     .data(nodes)
     .join("circle")
-      .attr("fill", d => color(d.type + 5))
+      .attr("fill", d => color_player(d.type))
       .attr("r", d => radius_from_id(d.id)*node_radius)
       .call(drag(simulation))
-    .on("click", d => {
-      console.log(d)
+    .on("mouseover", d => {
+      console.log(d);
+      tooltip.text(`${d.id}: ${d.name}`);
     });
   
   simulation.on("tick", () => {

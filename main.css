@@ -3,7 +3,7 @@ body {
   padding: 0;
   overflow: hidden;
   font-family: sans-serif;
-  color: #E60268;
+  background-color: #69FFBF;
 }
 
 svg {
@@ -11,5 +11,11 @@ svg {
   top: 0;
   bottom: 0;
   left: 0;
+  right: 0;
+}
+
+#tooltip {
+  position: fixed;
+  top: 0;
   right: 0;
 }
