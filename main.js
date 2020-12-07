@@ -47,9 +47,9 @@ const node_radius = 5;
 const link_length = 10;
 
 const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#F5FFE0`, `#FF7A00`, `#1A171B`])
-  .unknown(`#000000`);
+  .unknown(`#00ff00`);
 const color_reaction = d3.scaleOrdinal(d3.range(1, 3), [`#07ABAB`, `#FF4036`])
-  .unknown(`#000000`);
+  .unknown(`#00ff00`);
 
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
@@ -58,13 +58,22 @@ d3.csv(`data/event_${data_group}.csv`).then(data => {
   let nodes = [];
   let links = [];
   data.forEach((d, i) => {
-    nodes.push({ id: +d.event_no, name: d.event_name, type: +d.player });
-    node_sizes[+d.event_no] = 1;
+    let id = d.event_no.trim();
+    // nodes.push({ id: id, name: d.event_name, type: +d.player });
+    nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
+    node_sizes[id] = 1;
+
     if (d.pre_event != "") {
-      links.push({ source: +d.pre_event, target: +d.event_no, value: +d.reaction_type });
-      node_sizes[+d.pre_event]++;
+      let pres = d.pre_event.split(",");
+      for (let pre of pres) {
+        pre = pre.trim();
+        links.push({ source: pre, target: d.event_no, value: +d.reaction_type });
+        node_sizes[pre]++;
+      }
     }
   })
+  console.log(nodes);
+  console.log(node_sizes)
   
   const simulation = d3.forceSimulation(nodes)
     .force("charge", d3.forceManyBody()
