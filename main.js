@@ -2,7 +2,7 @@
 const queryStringRegEx = query => new RegExp(`[?|&]${query}=([^&]*)`);
 const url = window.location.search;
 let matches = url.match(queryStringRegEx("data"));
-const data_group = matches ? matches[1] : "อนาคตใหม่";
+const data_group = matches ? matches[1] : "คณะราษฎร";
 
 const width = document.getElementsByTagName('body')[0].offsetWidth;
 const height = document.getElementsByTagName('body')[0].offsetHeight;
@@ -54,7 +54,7 @@ const color_reaction = d3.scaleOrdinal(d3.range(1, 3), [`#07ABAB`, `#FF4036`])
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
 
-d3.csv(`data/event_${data_group}.csv`).then(data => {
+d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_group}.csv`).then(data => {
   let nodes = [];
   let links = [];
   data.forEach((d, i) => {
@@ -72,8 +72,6 @@ d3.csv(`data/event_${data_group}.csv`).then(data => {
       }
     }
   })
-  console.log(nodes);
-  console.log(node_sizes)
   
   const simulation = d3.forceSimulation(nodes)
     .force("charge", d3.forceManyBody()
