@@ -48,8 +48,27 @@ const link_length = 10;
 
 const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#F5FFE0`, `#FF7A00`, `#1A171B`])
   .unknown(`#00ff00`);
-const color_reaction = d3.scaleOrdinal(d3.range(1, 3), [`#07ABAB`, `#FF4036`])
+const reaction_types = d3.range(1, 3);
+const color_reaction = d3.scaleOrdinal(reaction_types, [`#07ABAB`, `#FF4036`])
   .unknown(`#00ff00`);
+
+const svg = d3.select("svg");
+
+// Arrowheads
+const arrow_size = 5;
+svg.append("defs")
+  .selectAll("marker")
+  .data(reaction_types)
+  .join("marker")
+    .attr("id", d => `arrow-${d}`)
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 10)
+    .attr("markerWidth", arrow_size)
+    .attr("markerHeight", arrow_size)
+    .attr("orient", "auto")
+    .append("path")
+      .attr("fill", d => color_reaction(d))
+      .attr("d", "M0,-5L10,0L0,5");
 
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
@@ -59,8 +78,8 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
   let links = [];
   data.forEach((d, i) => {
     let id = d.event_no.trim();
-    // nodes.push({ id: id, name: d.event_name, type: +d.player });
-    nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
+    nodes.push({ id: id, name: d.event_name, type: +d.player });
+    // nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
     node_sizes[id] = 1;
 
     if (d.pre_event != "") {
@@ -88,21 +107,22 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
       .strength(0.2)
     )
   
-  const svg = d3.select("svg");
-  
   const link = svg.append("g")
-    .selectAll("line")
+    .selectAll("path")
     .data(links)
-    .join("line")
-      .attr("stroke-width", node_radius/2)
-      .attr("stroke", d => color_reaction(d.value));
+    .join("path")
+      .attr("fill", "none")
+      .attr("stroke-width", node_radius/4)
+      .attr("stroke", d => color_reaction(d.value))
+      .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`);
   
   const node = svg.append("g")
     .selectAll("circle")
     .data(nodes)
     .join("circle")
       .attr("fill", d => color_player(d.type))
-      .attr("r", d => radius_from_id(d.id)*node_radius)
+      .attr("r", node_radius)
+      // .attr("r", d => radius_from_id(d.id)*node_radius)
       .call(drag(simulation))
     .on("mouseover", d => {
       console.log(d);
@@ -111,10 +131,19 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
   
   simulation.on("tick", () => {
     link
-      .attr("x1", d => d.source.x + width / 2)
-      .attr("y1", d => d.source.y + height / 2)
-      .attr("x2", d => d.target.x + width / 2)
-      .attr("y2", d => d.target.y + height / 2);
+      .attr("d", function(d) {
+        return `M${d.source.x + width / 2},${d.source.y + height / 2} L${d.target.x + width / 2},${d.target.y + height / 2}`;
+      });
+    link
+      .attr("d", function(d) {
+        let m = this.getPointAtLength(this.getTotalLength() - node_radius);
+        return `M${d.source.x + width / 2},${d.source.y + height / 2} L${m.x},${m.y}`;
+      });
+    // link
+    //   .attr("x1", d => d.source.x + width / 2)
+    //   .attr("y1", d => d.source.y + height / 2)
+    //   .attr("x2", d => d.target.x + width / 2)
+    //   .attr("y2", d => d.target.y + height / 2);
   
     node
       .attr("cx", d => d.x + width / 2)
