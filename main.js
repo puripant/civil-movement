@@ -9,6 +9,7 @@ const height = document.getElementsByTagName('body')[0].offsetHeight;
 
 const tooltip = d3.select('#tooltip');
 
+let simulation;
 const drag = simulation => {
   function dragstarted(d) {
     if (!d3.event.active) simulation.alphaTarget(0.1).restart();
@@ -92,7 +93,7 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
     }
   })
   
-  const simulation = d3.forceSimulation(nodes)
+  simulation = d3.forceSimulation(nodes)
     .force("charge", d3.forceManyBody()
       .strength(-0.1)
     )
@@ -150,3 +151,73 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
       .attr("cy", d => d.y + height / 2);
   });
 });
+
+// Audio
+window.AudioContext = window.AudioContext || window.webkitAudioContext;
+let context = new AudioContext();
+
+navigator.mediaDevices.getUserMedia({ audio: true })
+.then((stream) => {
+  let mediaStreamSource = context.createMediaStreamSource(stream);
+  let meter = createAudioMeter(context);
+  mediaStreamSource.connect(meter);
+})
+.catch((err) => {
+  console.log(err);
+});
+
+function createAudioMeter(audioContext, clipLevel, averaging, clipLag) {
+  const processor = audioContext.createScriptProcessor(512)
+  processor.onaudioprocess = volumeAudioProcess
+  processor.clipping = false
+  processor.lastClip = 0
+  processor.volume = 0
+  processor.clipLevel = clipLevel || 0.98
+  processor.averaging = averaging || 0.95
+  processor.clipLag = clipLag || 750
+
+  processor.connect(audioContext.destination)
+
+  processor.checkClipping = function () {
+    if (!this.clipping) {
+      return false
+    }
+    if ((this.lastClip + this.clipLag) < window.performance.now()) {
+      this.clipping = false
+    }
+    return this.clipping
+  }
+
+  processor.shutdown = function () {
+    this.disconnect()
+    this.onaudioprocess = null
+  }
+
+  return processor
+}
+function volumeAudioProcess(event) {
+  const buf = event.inputBuffer.getChannelData(0);
+  const bufLength = buf.length;
+  let sum = 0;
+
+  for (var i = 0; i < bufLength; i++) {
+    let x = buf[i]
+    if (Math.abs(x) >= this.clipLevel) {
+      this.clipping = true
+      this.lastClip = window.performance.now()
+    }
+    sum += x * x
+  }
+  const rms = Math.sqrt(sum / bufLength)
+  this.volume = Math.max(rms, this.volume * this.averaging)
+  
+  if (this.volume > 0.2) {
+    simulation
+      .force("link", null)
+      .force("charge", d3.forceManyBody()
+        .strength(-1000)
+      )
+    simulation.alphaTarget(0.1).restart();
+    console.log("loud");
+  }
+}
