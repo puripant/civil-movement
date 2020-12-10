@@ -9,6 +9,8 @@ const height = document.getElementsByTagName('body')[0].offsetHeight;
 
 const tooltip = d3.select('#tooltip');
 
+let force_link;
+let charge_strength = -0.1;
 let simulation;
 const drag = simulation => {
   function dragstarted(d) {
@@ -46,6 +48,10 @@ const drag = simulation => {
 
 const node_radius = 5;
 const link_length = 10;
+
+const volume_to_charge_strength = d3.scalePow().exponent(2)
+  .domain([0, 1])
+  .range([-0.1, -1000])
 
 const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#F5FFE0`, `#FF7A00`, `#1A171B`])
   .unknown(`#00ff00`);
@@ -93,15 +99,15 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
     }
   })
   
+  force_link = d3.forceLink(links)
+    .id(d => d.id)
+    .distance(link_length)
+    .distance(d => (radius_from_id(d.source.id) + radius_from_id(d.target.id))*node_radius + link_length)
+    .strength(0.5);
   simulation = d3.forceSimulation(nodes)
+    .force("link", force_link)
     .force("charge", d3.forceManyBody()
-      .strength(-0.1)
-    )
-    .force("link", d3.forceLink(links)
-      .id(d => d.id)
-      .distance(link_length)
-      .distance(d => (radius_from_id(d.source.id) + radius_from_id(d.target.id))*node_radius + link_length)
-      .strength(0.5)
+      .strength(charge_strength)
     )
     .force("collide", d3.forceCollide()
       .radius(d => (radius_from_id(d.id) + 1)*node_radius)
@@ -156,15 +162,17 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
 window.AudioContext = window.AudioContext || window.webkitAudioContext;
 let context = new AudioContext();
 
-navigator.mediaDevices.getUserMedia({ audio: true })
-.then((stream) => {
-  let mediaStreamSource = context.createMediaStreamSource(stream);
-  let meter = createAudioMeter(context);
-  mediaStreamSource.connect(meter);
-})
-.catch((err) => {
-  console.log(err);
-});
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  navigator.mediaDevices.getUserMedia({ audio: true })
+  .then((stream) => {
+    let mediaStreamSource = context.createMediaStreamSource(stream);
+    let meter = createAudioMeter(context);
+    mediaStreamSource.connect(meter);
+  })
+  .catch((err) => {
+    console.log(err);
+  });
+}
 
 function createAudioMeter(audioContext, clipLevel, averaging, clipLag) {
   const processor = audioContext.createScriptProcessor(512)
@@ -195,11 +203,12 @@ function createAudioMeter(audioContext, clipLevel, averaging, clipLag) {
 
   return processor
 }
+
 function volumeAudioProcess(event) {
   const buf = event.inputBuffer.getChannelData(0);
   const bufLength = buf.length;
+  
   let sum = 0;
-
   for (var i = 0; i < bufLength; i++) {
     let x = buf[i]
     if (Math.abs(x) >= this.clipLevel) {
@@ -211,13 +220,14 @@ function volumeAudioProcess(event) {
   const rms = Math.sqrt(sum / bufLength)
   this.volume = Math.max(rms, this.volume * this.averaging)
   
-  if (this.volume > 0.2) {
+  if (Math.abs(charge_strength - volume_to_charge_strength(this.volume)) > 10) {
+    charge_strength = volume_to_charge_strength(this.volume);
     simulation
-      .force("link", null)
+      .force("link", force_link)
       .force("charge", d3.forceManyBody()
-        .strength(-1000)
+        .strength(charge_strength)
       )
     simulation.alphaTarget(0.1).restart();
-    console.log("loud");
+    console.log("changed")
   }
 }
