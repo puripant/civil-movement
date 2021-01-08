@@ -46,6 +46,9 @@ const reaction_types = d3.range(1, 3);
 const color_reaction = d3.scaleOrdinal(reaction_types, [`#07ABAB`, `#FF4036`])
   .unknown(`#00ff00`);
 
+const bound_x = (x, centered=true) => Math.max(node_radius, Math.min(width - node_radius, x + (centered ? width / 2 : 0)))
+const bound_y = (y, centered=true) => Math.max(node_radius, Math.min(height - node_radius, y + (centered ? height / 2 : 0)))
+
 const svg = d3.select("svg");
 
 // Arrowheads
@@ -126,12 +129,12 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   simulation.on("tick", () => {
     link
       .attr("d", function(d) {
-        return `M${d.source.x + width / 2},${d.source.y + height / 2} L${d.target.x + width / 2},${d.target.y + height / 2}`;
+        return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(d.target.x)},${bound_y(d.target.y)}`;
       });
     link
       .attr("d", function(d) {
         let m = this.getPointAtLength(this.getTotalLength() - node_radius);
-        return `M${d.source.x + width / 2},${d.source.y + height / 2} L${m.x},${m.y}`;
+        return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(m.x, false)},${bound_y(m.y, false)}`;
       });
     // link
     //   .attr("x1", d => d.source.x + width / 2)
@@ -140,8 +143,8 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     //   .attr("y2", d => d.target.y + height / 2);
   
     node
-      .attr("cx", d => d.x + width / 2)
-      .attr("cy", d => d.y + height / 2);
+      .attr("cx", d => bound_x(d.x))
+      .attr("cy", d => bound_y(d.y))
   });
 });
 
