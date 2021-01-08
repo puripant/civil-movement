@@ -1,8 +1,8 @@
-// Get URL parameters
-const queryStringRegEx = query => new RegExp(`[?|&]${query}=([^&]*)`);
-const url = window.location.search;
-let matches = url.match(queryStringRegEx("data"));
-const data_group = matches ? matches[1] : "คณะราษฎร";
+// // Get URL parameters
+// const queryStringRegEx = query => new RegExp(`[?|&]${query}=([^&]*)`);
+// const url = window.location.search;
+// let matches = url.match(queryStringRegEx("data"));
+// const data_group = matches ? matches[1] : "คณะราษฎร";
 
 const width = document.getElementsByTagName('body')[0].offsetWidth;
 const height = document.getElementsByTagName('body')[0].offsetHeight;
@@ -13,17 +13,17 @@ let force_link;
 let charge_strength = -0.1;
 let simulation;
 const drag = simulation => {
-  function dragstarted(d) {
-    if (!d3.event.active) simulation.alphaTarget(0.1).restart();
+  function dragstarted(event, d) {
+    if (!event.active) simulation.alphaTarget(0.1).restart();
     d.fx = d.x;
     d.fy = d.y;
   }
-  function dragged(d) {
-    d.fx = d3.event.x;
-    d.fy = d3.event.y;
+  function dragged(event, d) {
+    d.fx = event.x;
+    d.fy = event.y;
   }
-  function dragended(d) {
-    if (!d3.event.active) simulation.alphaTarget(0);
+  function dragended(event, d) {
+    if (!event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
   }
@@ -32,19 +32,6 @@ const drag = simulation => {
     .on("drag", dragged)
     .on("end", dragended);
 }
-
-// event_no,event_name,pre_event,reaction_type,player,date,location,cause,proposal,key_topic,hashtag,tag
-// รหัสเหตุการณ์,
-// ชื่อเหตุการณ์,
-// เหตุการณ์ก่อนหน้าที่ทำให้เกิดเหตุการณ์นี้ (ใส่ event_no),
-// "ความสัมพันธ์กับเหตุการณ์ก่อนหน้า 1 = support, 2 = anti",
-// "คนจัด 1=เยาวชน, 2=ประชาชน, 3=พรรคการเมือง, 4=รัฐบาล",
-// วันที่เกิดเหตุการณ์,
-// สถานที่,
-// วัตถุประสงค์,
-// ข้อเรียกร้องหลัก,"1=ความยุติธรรม/ตุลาการ, 2=ขับไล่รัฐบาล, 3=แก้รัฐธรรมนูญ, 4=ปฏิรูปสถาบัน, 5=ม็อบไม่มีแกนนำ (อาจจะไม่มีก็ได้)",
-// hashtag ของม๊อบ,
-// จัดกลุ่มหัวข้อ (ใช้เป็น tag หน้าเว็บในการเสิร์ช)
 
 const node_radius = 5;
 const link_length = 10;
@@ -80,7 +67,7 @@ svg.append("defs")
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
 
-d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_group}.csv`).then(data => {
+d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   let nodes = [];
   let links = [];
   data.forEach((d, i) => {
@@ -131,8 +118,8 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
       .attr("r", node_radius)
       // .attr("r", d => radius_from_id(d.id)*node_radius)
       .call(drag(simulation))
-    .on("mouseover", d => {
-      console.log(d);
+    .on("mouseover", (event, d) => {
+      // console.log(d);
       tooltip.text(`${d.id}: ${d.name}`);
     });
   
@@ -158,76 +145,76 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_จักรวาล${data_gro
   });
 });
 
-// Audio
-window.AudioContext = window.AudioContext || window.webkitAudioContext;
-let context = new AudioContext();
+// // Audio
+// window.AudioContext = window.AudioContext || window.webkitAudioContext;
+// let context = new AudioContext();
 
-if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-  navigator.mediaDevices.getUserMedia({ audio: true })
-  .then((stream) => {
-    let mediaStreamSource = context.createMediaStreamSource(stream);
-    let meter = createAudioMeter(context);
-    mediaStreamSource.connect(meter);
-  })
-  .catch((err) => {
-    console.log(err);
-  });
-}
+// if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+//   navigator.mediaDevices.getUserMedia({ audio: true })
+//   .then((stream) => {
+//     let mediaStreamSource = context.createMediaStreamSource(stream);
+//     let meter = createAudioMeter(context);
+//     mediaStreamSource.connect(meter);
+//   })
+//   .catch((err) => {
+//     console.log(err);
+//   });
+// }
 
-function createAudioMeter(audioContext, clipLevel, averaging, clipLag) {
-  const processor = audioContext.createScriptProcessor(512)
-  processor.onaudioprocess = volumeAudioProcess
-  processor.clipping = false
-  processor.lastClip = 0
-  processor.volume = 0
-  processor.clipLevel = clipLevel || 0.98
-  processor.averaging = averaging || 0.95
-  processor.clipLag = clipLag || 750
+// function createAudioMeter(audioContext, clipLevel, averaging, clipLag) {
+//   const processor = audioContext.createScriptProcessor(512)
+//   processor.onaudioprocess = volumeAudioProcess
+//   processor.clipping = false
+//   processor.lastClip = 0
+//   processor.volume = 0
+//   processor.clipLevel = clipLevel || 0.98
+//   processor.averaging = averaging || 0.95
+//   processor.clipLag = clipLag || 750
 
-  processor.connect(audioContext.destination)
+//   processor.connect(audioContext.destination)
 
-  processor.checkClipping = function () {
-    if (!this.clipping) {
-      return false
-    }
-    if ((this.lastClip + this.clipLag) < window.performance.now()) {
-      this.clipping = false
-    }
-    return this.clipping
-  }
+//   processor.checkClipping = function () {
+//     if (!this.clipping) {
+//       return false
+//     }
+//     if ((this.lastClip + this.clipLag) < window.performance.now()) {
+//       this.clipping = false
+//     }
+//     return this.clipping
+//   }
 
-  processor.shutdown = function () {
-    this.disconnect()
-    this.onaudioprocess = null
-  }
+//   processor.shutdown = function () {
+//     this.disconnect()
+//     this.onaudioprocess = null
+//   }
 
-  return processor
-}
+//   return processor
+// }
 
-function volumeAudioProcess(event) {
-  const buf = event.inputBuffer.getChannelData(0);
-  const bufLength = buf.length;
+// function volumeAudioProcess(event) {
+//   const buf = event.inputBuffer.getChannelData(0);
+//   const bufLength = buf.length;
   
-  let sum = 0;
-  for (var i = 0; i < bufLength; i++) {
-    let x = buf[i]
-    if (Math.abs(x) >= this.clipLevel) {
-      this.clipping = true
-      this.lastClip = window.performance.now()
-    }
-    sum += x * x
-  }
-  const rms = Math.sqrt(sum / bufLength)
-  this.volume = Math.max(rms, this.volume * this.averaging)
+//   let sum = 0;
+//   for (var i = 0; i < bufLength; i++) {
+//     let x = buf[i]
+//     if (Math.abs(x) >= this.clipLevel) {
+//       this.clipping = true
+//       this.lastClip = window.performance.now()
+//     }
+//     sum += x * x
+//   }
+//   const rms = Math.sqrt(sum / bufLength)
+//   this.volume = Math.max(rms, this.volume * this.averaging)
   
-  if (Math.abs(charge_strength - volume_to_charge_strength(this.volume)) > 10) {
-    charge_strength = volume_to_charge_strength(this.volume);
-    simulation
-      .force("link", force_link)
-      .force("charge", d3.forceManyBody()
-        .strength(charge_strength)
-      )
-    simulation.alphaTarget(0.1).restart();
-    console.log("changed")
-  }
-}
+//   if (Math.abs(charge_strength - volume_to_charge_strength(this.volume)) > 10) {
+//     charge_strength = volume_to_charge_strength(this.volume);
+//     simulation
+//       .force("link", force_link)
+//       .force("charge", d3.forceManyBody()
+//         .strength(charge_strength)
+//       )
+//     simulation.alphaTarget(0.1).restart();
+//     console.log("changed")
+//   }
+// }
