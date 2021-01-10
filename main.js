@@ -36,9 +36,9 @@ const drag = simulation => {
 const node_radius = 5;
 const link_length = 10;
 
-const volume_to_charge_strength = d3.scalePow().exponent(2)
-  .domain([0, 1])
-  .range([-0.1, -1000])
+// const volume_to_charge_strength = d3.scalePow().exponent(2)
+//   .domain([0, 1])
+//   .range([-0.1, -1000])
 
 const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#F5FFE0`, `#FF7A00`, `#1A171B`])
   .unknown(`#00ff00`);
@@ -46,8 +46,22 @@ const reaction_types = d3.range(1, 3);
 const color_reaction = d3.scaleOrdinal(reaction_types, [`#07ABAB`, `#FF4036`])
   .unknown(`#00ff00`);
 
-const bound_x = (x, centered=true) => Math.max(node_radius, Math.min(width - node_radius, x + (centered ? width / 2 : 0)))
-const bound_y = (y, centered=true) => Math.max(node_radius, Math.min(height - node_radius, y + (centered ? height / 2 : 0)))
+const time_x = d3.scaleTime([new Date(2020, 0, 1), new Date(2020, 11, 31)], [-width/2, width/2])
+const thai_date_from_string = str => {
+  dmy = str.split("-")
+  return new Date(+dmy[2] - 543, +dmy[1] - 1, +dmy[0])
+}
+const thai_date_to_string = date => {
+  return new Date(date).toLocaleDateString("th-TH", {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+const bound_x = (x, centered=true) => Math.max(node_radius, Math.min(width - node_radius, x + (centered ? width/2 : 0)))
+const bound_y = (y, centered=true) => Math.max(node_radius, Math.min(height - node_radius, y + (centered ? height/2 : 0)))
 
 const svg = d3.select("svg");
 
@@ -73,9 +87,12 @@ const radius_from_id = id => Math.sqrt(node_sizes[id]);
 d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   let nodes = [];
   let links = [];
+  let stems = [];
   data.forEach((d, i) => {
     let id = d.event_no.trim();
-    nodes.push({ id: id, name: d.event_name, type: +d.player });
+    let date = thai_date_from_string(d.date)
+
+    nodes.push({ id: id, date: date, name: d.event_name, type: +d.player, x: time_x(date), y: 0 });
     // nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
     node_sizes[id] = 1;
 
@@ -86,6 +103,10 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
         links.push({ source: pre, target: d.event_no, value: +d.reaction_type });
         node_sizes[pre]++;
       }
+    }
+
+    if (+d.time_show === 1 || +d.time_show === 2) { // 1 for long line, 2 for short line
+      stems.push({ source: { x: time_x(date), y: height/2 }, target: d.event_no });
     }
   })
   
@@ -112,6 +133,14 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("stroke-width", node_radius/4)
       .attr("stroke", d => color_reaction(d.value))
       .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`);
+
+  const stem = svg.append("g")
+    .selectAll("path")
+    .data(stems)
+    .join("path")
+      .attr("fill", "none")
+      .attr("stroke-width", node_radius/4)
+      .attr("stroke", "black");
   
   const node = svg.append("g")
     .selectAll("circle")
@@ -120,10 +149,12 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("fill", d => color_player(d.type))
       .attr("r", node_radius)
       // .attr("r", d => radius_from_id(d.id)*node_radius)
+      .attr("cx", d => bound_x(d.x))
+      .attr("cy", d => bound_y(d.y))
       .call(drag(simulation))
     .on("mouseover", (event, d) => {
       // console.log(d);
-      tooltip.text(`${d.id}: ${d.name}`);
+      tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
     });
   
   simulation.on("tick", () => {
@@ -137,10 +168,18 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
         return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(m.x, false)},${bound_y(m.y, false)}`;
       });
     // link
-    //   .attr("x1", d => d.source.x + width / 2)
-    //   .attr("y1", d => d.source.y + height / 2)
-    //   .attr("x2", d => d.target.x + width / 2)
-    //   .attr("y2", d => d.target.y + height / 2);
+    //   .attr("x1", d => d.source.x + width/2)
+    //   .attr("y1", d => d.source.y + height/2)
+    //   .attr("x2", d => d.target.x + width/2)
+    //   .attr("y2", d => d.target.y + height/2);
+
+    // stem
+    //   .attr("d", d3.linkVertical()
+    //     .source(d => d.source)
+    //     .target(d => d.target)
+    //     .x(d => d.x)
+    //     .y(d => d.y)
+    //   );
   
     node
       .attr("cx", d => bound_x(d.x))
