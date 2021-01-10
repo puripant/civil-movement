@@ -46,7 +46,7 @@ const reaction_types = d3.range(1, 3);
 const color_reaction = d3.scaleOrdinal(reaction_types, [`#07ABAB`, `#FF4036`])
   .unknown(`#00ff00`);
 
-const time_x = d3.scaleTime([new Date(2020, 0, 1), new Date(2020, 11, 31)], [-width/2, width/2])
+const time_x = d3.scaleTime([new Date(2019, 6, 1), new Date(2021, 5, 30)], [-width/2, width/2])
 const thai_date_from_string = str => {
   dmy = str.split("-")
   return new Date(+dmy[2] - 543, +dmy[1] - 1, +dmy[0])
@@ -88,11 +88,21 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   let nodes = [];
   let links = [];
   let stems = [];
+  let stem_ids = [];
+  let stem_nodes;
+
   data.forEach((d, i) => {
     let id = d.event_no.trim();
     let date = thai_date_from_string(d.date)
 
-    nodes.push({ id: id, date: date, name: d.event_name, type: +d.player, x: time_x(date), y: 0 });
+    nodes.push({ 
+      id: id, 
+      date: date, 
+      name: d.event_name, 
+      type: +d.player, 
+      x: time_x(date), 
+      y: (+d.time_show === 2) ? height/4 : 0
+    });
     // nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
     node_sizes[id] = 1;
 
@@ -100,14 +110,16 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       let pres = d.pre_event.split(",");
       for (let pre of pres) {
         pre = pre.trim();
-        links.push({ source: pre, target: d.event_no, value: +d.reaction_type });
+        links.push({ source: pre, target: id, value: +d.reaction_type });
         node_sizes[pre]++;
       }
     }
 
     if (+d.time_show === 1 || +d.time_show === 2) { // 1 for long line, 2 for short line
-      stems.push({ source: { x: time_x(date), y: height/2 }, target: d.event_no });
+      stems.push({ source: { x: time_x(date), y: height/2 }, target_id: id });
+      stem_ids.push(id);
     }
+    stem_nodes = nodes.filter(d => stem_ids.includes(d.id)) // shallow copy
   })
   
   force_link = d3.forceLink(links)
@@ -133,7 +145,7 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("stroke-width", node_radius/4)
       .attr("stroke", d => color_reaction(d.value))
       .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`);
-
+  
   const stem = svg.append("g")
     .selectAll("path")
     .data(stems)
@@ -173,13 +185,17 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     //   .attr("x2", d => d.target.x + width/2)
     //   .attr("y2", d => d.target.y + height/2);
 
-    // stem
-    //   .attr("d", d3.linkVertical()
-    //     .source(d => d.source)
-    //     .target(d => d.target)
-    //     .x(d => d.x)
-    //     .y(d => d.y)
-    //   );
+    for (let i = 0; i < stems.length; i++) {
+      let n = stem_nodes.find(d => d.id === stems[i].target_id)
+      stems[i].target = { x: n.x, y: n.y }
+    }
+    stem
+      .attr("d", d3.linkVertical()
+        .source(d => d.source)
+        .target(d => d.target)
+        .x(d => bound_x(d.x))
+        .y(d => bound_y(d.y))
+      );
   
     node
       .attr("cx", d => bound_x(d.x))
