@@ -17,6 +17,7 @@ const drag = simulation => {
     if (!event.active) simulation.alphaTarget(0.1).restart();
     d.fx = d.x;
     d.fy = d.y;
+    // circle.filter(p => p === d).raise().attr("stroke", "black"))
   }
   function dragged(event, d) {
     d.fx = event.x;
@@ -26,6 +27,7 @@ const drag = simulation => {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
+    // circle.filter(p => p === d).attr("stroke", null))
   }
   return d3.drag()
     .on("start", dragstarted)
@@ -100,8 +102,8 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       date: date, 
       name: d.event_name, 
       type: +d.player, 
-      x: time_x(date), 
-      y: (+d.time_show === 2) ? height/4 : 0
+      x: time_x(date) + Math.random(), 
+      y: (+d.time_show === 2) ? height/3 : Math.random()
     });
     // nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
     node_sizes[id] = 1;
@@ -136,6 +138,7 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .radius(d => (radius_from_id(d.id) + 1)*node_radius)
       .strength(0.2)
     )
+    .tick(10)
   
   const link = svg.append("g")
     .selectAll("path")
@@ -158,8 +161,9 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     .selectAll("circle")
     .data(nodes)
     .join("circle")
+      .classed("node", true)
       .attr("fill", d => color_player(d.type))
-      .attr("r", node_radius)
+      // .attr("r", node_radius)
       // .attr("r", d => radius_from_id(d.id)*node_radius)
       .attr("cx", d => bound_x(d.x))
       .attr("cy", d => bound_y(d.y))
@@ -168,6 +172,18 @@ d3.csv(`data/[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       // console.log(d);
       tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
     });
+
+  // node.transition()
+  //   .delay((d, i) => i * 20)
+  //   .duration(2000)
+  //   .attrTween("r", d => {
+  //     const i = d3.interpolate(0, node_radius);
+  //     return t => i(t);
+  //   });
+  node.transition()
+    .delay((d, i) => i * 20)
+    .duration(2000)
+    .attr("r", node_radius);
   
   simulation.on("tick", () => {
     link
