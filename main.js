@@ -164,7 +164,6 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("fill", "none")
       .attr("stroke-width", node_radius/4)
       .attr("stroke", d => color_player(d.type))
-      .attr("opacity", d => d.shown ? 1 : 0)
   
   const node = svg.append("g")
     .selectAll("circle")
@@ -208,10 +207,20 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   //     const i = d3.interpolate(0, node_radius);
   //     return t => i(t);
   //   });
+  link.attr("opacity", 0)
+    .transition()
+    .delay((d, i) => i*20) //time_x(d.date)*100)
+    .duration(2000)
+    .attr("opacity", 1)
+  stem.attr("opacity", 0)
+    .transition()
+    .delay((d, i) => i*20) //time_x(d.date)*100)
+    .duration(2000)
+    .attr("opacity", d => d.shown ? 1 : 0)
   node.transition()
     .delay((d, i) => i*20) //time_x(d.date)*100)
     .duration(2000)
-    .attr("r", node_radius);
+    .attr("r", node_radius)
   
   simulation.on("tick", () => {
     link
