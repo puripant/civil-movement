@@ -5,7 +5,6 @@ const mode = width > height ? "desktop" : "mobile"
 const tooltip = d3.select('#tooltip');
 
 let force_link;
-let charge_strength = -0.1;
 let simulation;
 const drag = simulation => {
   function dragstarted(event, d) {
@@ -141,13 +140,13 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   simulation = d3.forceSimulation(nodes)
     .force("link", force_link)
     .force("charge", d3.forceManyBody()
-      .strength(charge_strength)
+      .strength(-0.2)
     )
     .force("collide", d3.forceCollide()
       .radius(d => (radius_from_id(d.id) + 1)*node_radius)
       .strength(0.2)
     )
-    .tick(10)
+    .tick(20)
   
   const link = svg.append("g")
     .selectAll("path")
