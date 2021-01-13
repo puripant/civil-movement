@@ -6,8 +6,10 @@ const tooltip = d3.select('#tooltip');
 
 let force_link;
 let simulation;
-const drag = simulation => {
+let dragging = false;
+const drag = () => {
   function dragstarted(event, d) {
+    dragging = true;
     if (!event.active) simulation.alphaTarget(0.1).restart();
     d.fx = d.x;
     d.fy = d.y;
@@ -20,6 +22,7 @@ const drag = simulation => {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
+    dragging = false;
   }
   return d3.drag()
     .on("start", dragstarted)
@@ -139,7 +142,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     .strength(0.5);
   simulation = d3.forceSimulation(nodes)
     .force("link", force_link)
-    .force("charge", d3.forceManyBody()
+    .force("charge", d3.forceManyBodySampled()
       .strength(-0.2)
     )
     .force("collide", d3.forceCollide()
@@ -173,10 +176,10 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("fill", d => color_player(d.type))
       .attr("cx", d => bound_x(d.x))
       .attr("cy", d => bound_y(d.y))
-      .call(drag(simulation))
+      .call(drag())
     .on("mouseover", (event, d) => {
-      // console.log(d);
-      tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
+      console.log(d);
+      // tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
 
       link
         .attr("stroke", d => color_reaction_muted(d.value))
@@ -191,13 +194,15 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       d3.select(event.currentTarget).attr("fill", d => color_player(d.type))
     })
     .on("mouseout", (event, d) => {
-      link
-        .attr("stroke", d => color_reaction(d.value))
-        .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`)
-      stem
-        .attr("stroke", d => color_player(d.type))
-        .attr("opacity", d => d.shown ? 1 : 0)
-      node.attr("fill", d => color_player(d.type))
+      if (!dragging) {
+        link
+          .attr("stroke", d => color_reaction(d.value))
+          .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`)
+        stem
+          .attr("stroke", d => color_player(d.type))
+          .attr("opacity", d => d.shown ? 1 : 0)
+        node.attr("fill", d => color_player(d.type))
+      }
     });
 
   // node.transition()
