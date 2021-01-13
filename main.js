@@ -11,7 +11,6 @@ const drag = simulation => {
     if (!event.active) simulation.alphaTarget(0.1).restart();
     d.fx = d.x;
     d.fy = d.y;
-    // circle.filter(p => p === d).raise().attr("stroke", "black"))
   }
   function dragged(event, d) {
     d.fx = event.x;
@@ -21,7 +20,6 @@ const drag = simulation => {
     if (!event.active) simulation.alphaTarget(0);
     d.fx = null;
     d.fy = null;
-    // circle.filter(p => p === d).attr("stroke", null))
   }
   return d3.drag()
     .on("start", dragstarted)
@@ -32,10 +30,14 @@ const drag = simulation => {
 const node_radius = 5;
 const link_length = 10;
 
-const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#F5FFE0`, `#FF7A00`, `#1A171B`])
+const color_player = d3.scaleOrdinal(d3.range(1, 5), [`#FFFFFF`, `#C1B1F0`, `#FF7A00`, `#1A171B`])
+  .unknown(`#00ff00`);
+const color_player_muted = d3.scaleOrdinal(d3.range(1, 5), [`#C8FFF3`, `#B5E8EF`, `#C8D7A7`, `#83B9AF`])
   .unknown(`#00ff00`);
 const reaction_types = d3.range(1, 3);
-const color_reaction = d3.scaleOrdinal(reaction_types, [`#07ABAB`, `#FF4036`])
+const color_reaction = d3.scaleOrdinal(reaction_types, [`#0CC6C6`, `#FF655D`])
+  .unknown(`#00ff00`);
+const color_reaction_muted = d3.scaleOrdinal(reaction_types, [`#7EEEE1`, `#C6D1C2`])
   .unknown(`#00ff00`);
 
 const time_x = d3.scaleTime([new Date(2019, 6, 1), new Date(2021, 5, 30)], [-width/2, width/2])
@@ -72,6 +74,19 @@ svg.append("defs")
     .append("path")
       .attr("fill", d => color_reaction(d))
       .attr("d", "M0,-5L10,0L0,5");
+svg.append("defs")
+  .selectAll("marker")
+  .data(reaction_types)
+  .join("marker")
+    .attr("id", d => `arrow-${d}-muted`)
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 10)
+    .attr("markerWidth", arrow_size)
+    .attr("markerHeight", arrow_size)
+    .attr("orient", "auto")
+    .append("path")
+      .attr("fill", d => color_reaction_muted(d))
+      .attr("d", "M0,-5L10,0L0,5");
 
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
@@ -96,7 +111,6 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       x: time_x(date) + Math.random(), 
       y: (+d.time_show === 2) ? height/3 : Math.random()
     });
-    // nodes.push({ id: id, name: d.event_name, type: +d.player, pre: d.pre_event, reaction: d.reaction_type });
     node_sizes[id] = 1;
 
     if (d.pre_event != "") {
@@ -147,7 +161,6 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("fill", "none")
       .attr("stroke-width", node_radius/4)
       .attr("stroke", d => color_player(d.type))
-      // .attr("stroke", "black");
   
   const node = svg.append("g")
     .selectAll("circle")
@@ -155,24 +168,26 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     .join("circle")
       .classed("node", true)
       .attr("fill", d => color_player(d.type))
-      // .attr("r", node_radius)
-      // .attr("r", d => radius_from_id(d.id)*node_radius)
       .attr("cx", d => bound_x(d.x))
       .attr("cy", d => bound_y(d.y))
       .call(drag(simulation))
     .on("mouseover", (event, d) => {
       // console.log(d);
-      // tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
-      link.attr("opacity", 0.5)
-      stem.attr("opacity", 0.5)
-      node.attr("opacity", 0.5)
-      d3.select(event.currentTarget).attr("opacity", 1)
+      tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
+
+      link
+        .attr("stroke", d => color_reaction_muted(d.value))
+        .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}-muted`, location)})`)
+      stem.attr("stroke", d => color_player_muted(d.type))
+      node.attr("fill", d => color_player_muted(d.type))
+      d3.select(event.currentTarget).attr("fill", d => color_player(d.type))
     })
     .on("mouseout", (event, d) => {
-      link.attr("opacity", 1)
-      link.attr("opacity", 1)
-      stem.attr("opacity", 1)
-      node.attr("opacity", 1)
+      link
+        .attr("stroke", d => color_reaction(d.value))
+        .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`)
+      stem.attr("stroke", d => color_player(d.type))
+      node.attr("fill", d => color_player(d.type))
     });
 
   // node.transition()
