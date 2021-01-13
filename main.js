@@ -1,5 +1,6 @@
 const width = document.getElementsByTagName('body')[0].offsetWidth;
 const height = document.getElementsByTagName('body')[0].offsetHeight;
+const mode = width > height ? "desktop" : "mobile"
 
 const tooltip = d3.select('#tooltip');
 
@@ -108,8 +109,8 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       date: date, 
       name: d.event_name, 
       type: +d.player, 
-      x: time_x(date) + Math.random(), 
-      y: (+d.time_show === 2) ? height/3 : Math.random()
+      x: d["x_" + mode] ? (+d["x_" + mode] - 50)*width/100 : time_x(date) + Math.random(), 
+      y: d["y_" + mode] ? (50 - +d["y_" + mode])*height/100 : (+d.time_show === 2) ? height/3 : Math.random()
     });
     node_sizes[id] = 1;
 
