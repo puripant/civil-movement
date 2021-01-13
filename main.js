@@ -97,7 +97,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   let links = [];
   let stems = [];
   let stem_ids = [];
-  let stem_nodes;
+  // let stem_nodes;
 
   data.sort((a, b) => thai_date_from_string(a.date) - thai_date_from_string(b.date))
   data.forEach((d, i) => {
@@ -123,11 +123,14 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       }
     }
 
-    if (+d.time_show === 1 || +d.time_show === 2) { // 1 for long line, 2 for short line
-      stems.push({ source: { x: time_x(date), y: height/2 }, target_id: id, type: +d.player });
-      stem_ids.push(id);
-    }
-    stem_nodes = nodes.filter(d => stem_ids.includes(d.id)) // shallow copy
+    stems.push({
+      source: { x: time_x(date), y: height/2 },
+      target_id: id,
+      type: +d.player,
+      shown: +d.time_show === 1 || +d.time_show === 2 // 1 for long line, 2 for short line
+    });
+    stem_ids.push(id);
+    // stem_nodes = nodes.filter(d => stem_ids.includes(d.id)) // shallow copy
   })
   
   force_link = d3.forceLink(links)
@@ -162,6 +165,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("fill", "none")
       .attr("stroke-width", node_radius/4)
       .attr("stroke", d => color_player(d.type))
+      .attr("opacity", d => d.shown ? 1 : 0)
   
   const node = svg.append("g")
     .selectAll("circle")
@@ -179,7 +183,12 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       link
         .attr("stroke", d => color_reaction_muted(d.value))
         .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}-muted`, location)})`)
-      stem.attr("stroke", d => color_player_muted(d.type))
+      stem
+        .attr("stroke", d => color_player_muted(d.type))
+        .filter(dd => dd.target_id === d.id)
+          .raise()
+          .attr("stroke", d => color_player(d.type))
+          .attr("opacity", 1)
       node.attr("fill", d => color_player_muted(d.type))
       d3.select(event.currentTarget).attr("fill", d => color_player(d.type))
     })
@@ -187,7 +196,9 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       link
         .attr("stroke", d => color_reaction(d.value))
         .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`)
-      stem.attr("stroke", d => color_player(d.type))
+      stem
+        .attr("stroke", d => color_player(d.type))
+        .attr("opacity", d => d.shown ? 1 : 0)
       node.attr("fill", d => color_player(d.type))
     });
 
@@ -215,7 +226,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       });
 
     for (let i = 0; i < stems.length; i++) {
-      let n = stem_nodes.find(d => d.id === stems[i].target_id)
+      let n = nodes.find(d => d.id === stems[i].target_id)
       stems[i].target = { x: n.x, y: n.y }
     }
     stem
