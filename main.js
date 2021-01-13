@@ -106,14 +106,15 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     let id = d.event_no.trim();
     let date = thai_date_from_string(d.date)
 
-    nodes.push({ 
+    let node = { 
       id: id, 
       date: date, 
       name: d.event_name, 
       type: +d.player, 
       x: d["x_" + mode] ? (+d["x_" + mode] - 50)*width/100 : time_x(date) + Math.random(), 
       y: d["y_" + mode] ? (50 - +d["y_" + mode])*height/100 : (+d.time_show === 2) ? height/3 : Math.random()
-    });
+    }
+    nodes.push(node);
     node_sizes[id] = 1;
 
     if (d.pre_event != "") {
@@ -127,12 +128,11 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
 
     stems.push({
       source: { x: time_x(date), y: height/2 },
-      target_id: id,
+      target: node,
       type: +d.player,
       shown: +d.time_show === 1 || +d.time_show === 2 // 1 for long line, 2 for short line
     });
     stem_ids.push(id);
-    // stem_nodes = nodes.filter(d => stem_ids.includes(d.id)) // shallow copy
   })
   
   force_link = d3.forceLink(links)
@@ -178,7 +178,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .attr("cy", d => bound_y(d.y))
       .call(drag())
     .on("mouseover", (event, d) => {
-      console.log(d);
+      // console.log(d);
       // tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
 
       link
@@ -186,7 +186,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
         .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}-muted`, location)})`)
       stem
         .attr("stroke", d => color_player_muted(d.type))
-        .filter(dd => dd.target_id === d.id)
+        .filter(dd => dd.target.id === d.id)
           .raise()
           .attr("stroke", d => color_player(d.type))
           .attr("opacity", 1)
@@ -214,17 +214,17 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
   //   });
   link.attr("opacity", 0)
     .transition()
-    .delay((d, i) => i*20) //time_x(d.date)*100)
-    .duration(2000)
+    .delay((d, i) => i*15) //time_x(d.date)*100)
+    .duration(1500)
     .attr("opacity", 1)
   stem.attr("opacity", 0)
     .transition()
-    .delay((d, i) => i*20) //time_x(d.date)*100)
-    .duration(2000)
+    .delay((d, i) => i*15) //time_x(d.date)*100)
+    .duration(1500)
     .attr("opacity", d => d.shown ? 1 : 0)
   node.transition()
-    .delay((d, i) => i*20) //time_x(d.date)*100)
-    .duration(2000)
+    .delay((d, i) => i*15) //time_x(d.date)*100)
+    .duration(1500)
     .attr("r", node_radius)
   
   simulation.on("tick", () => {
@@ -238,10 +238,6 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
         return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(m.x, false)},${bound_y(m.y, false)}`;
       });
 
-    for (let i = 0; i < stems.length; i++) {
-      let n = nodes.find(d => d.id === stems[i].target_id)
-      stems[i].target = { x: n.x, y: n.y }
-    }
     stem
       .attr("d", d3.linkVertical()
         .source(d => d.source)
