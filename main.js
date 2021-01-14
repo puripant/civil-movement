@@ -179,7 +179,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       .call(drag())
     .on("mouseover", (event, d) => {
       // console.log(d);
-      // tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
+      tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
 
       link
         .attr("stroke", d => color_reaction_muted(d.value))
