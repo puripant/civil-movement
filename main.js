@@ -4,7 +4,6 @@ const mode = width > height ? "desktop" : "mobile"
 
 const tooltip = d3.select('#tooltip');
 
-let force_link;
 let simulation;
 let dragging = false;
 const drag = () => {
@@ -64,32 +63,23 @@ const svg = d3.select("svg");
 
 // Arrowheads
 const arrow_size = 5;
-svg.append("defs")
+const append_marker = (id_suffix, color) => {
+  svg.append("defs")
   .selectAll("marker")
   .data(reaction_types)
   .join("marker")
-    .attr("id", d => `arrow-${d}`)
+    .attr("id", d => `arrow-${d}` + id_suffix)
     .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 10)
+    .attr("refX", 16)
     .attr("markerWidth", arrow_size)
     .attr("markerHeight", arrow_size)
     .attr("orient", "auto")
     .append("path")
-      .attr("fill", d => color_reaction(d))
+      .attr("fill", color)
       .attr("d", "M0,-5L10,0L0,5");
-svg.append("defs")
-  .selectAll("marker")
-  .data(reaction_types)
-  .join("marker")
-    .attr("id", d => `arrow-${d}-muted`)
-    .attr("viewBox", "0 -5 10 10")
-    .attr("refX", 10)
-    .attr("markerWidth", arrow_size)
-    .attr("markerHeight", arrow_size)
-    .attr("orient", "auto")
-    .append("path")
-      .attr("fill", d => color_reaction_muted(d))
-      .attr("d", "M0,-5L10,0L0,5");
+}
+append_marker("", d => color_reaction(d))
+append_marker("-muted", d => color_reaction_muted(d))
 
 let node_sizes = {};
 const radius_from_id = id => Math.sqrt(node_sizes[id]);
@@ -121,7 +111,7 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
       let pres = d.pre_event.split(",");
       for (let pre of pres) {
         pre = pre.trim();
-        links.push({ source: pre, target: id, value: +d.reaction_type });
+        links.push({ source: pre, target: id, type: +d.reaction_type });
         node_sizes[pre]++;
       }
     }
@@ -135,119 +125,133 @@ d3.csv(`[ELECT] Civil Movement Data - event_all.csv`).then(data => {
     stem_ids.push(id);
   })
   
-  force_link = d3.forceLink(links)
-    .id(d => d.id)
-    .distance(link_length)
-    .distance(d => (radius_from_id(d.source.id) + radius_from_id(d.target.id))*node_radius + link_length)
-    .strength(0.5);
+  const force_distance = d => (radius_from_id(d.source.id) + radius_from_id(d.target.id))*node_radius + link_length
+  const force_radius = d => (radius_from_id(d.id) + 1)*node_radius
   simulation = d3.forceSimulation(nodes)
-    .force("link", force_link)
+    .force("link", d3.forceLink(links)
+      .id(d => d.id)
+      .distance(link_length)
+      .distance(force_distance)
+      .strength(0.5)
+    )
     .force("charge", d3.forceManyBodySampled()
       .strength(-0.2)
     )
     .force("collide", d3.forceCollide()
-      .radius(d => (radius_from_id(d.id) + 1)*node_radius)
+      .radius(force_radius)
       .strength(0.2)
     )
     .tick(20)
   
+  const link_stroke = d => color_reaction(d.type)
+  const link_marker = d => `url(${new URL(`#arrow-${d.type}`, location)})`
   const link = svg.append("g")
     .selectAll("path")
     .data(links)
     .join("path")
       .attr("fill", "none")
       .attr("stroke-width", node_radius/4)
-      .attr("stroke", d => color_reaction(d.value))
-      .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`);
+      .attr("stroke", link_stroke)
+      .attr("marker-end", link_marker);
   
+  const node_color = d => color_player(d.type)
+  const stem_display = d => d.shown ? "unset" : "none"
   const stem = svg.append("g")
     .selectAll("path")
     .data(stems)
     .join("path")
       .attr("fill", "none")
       .attr("stroke-width", node_radius/4)
-      .attr("stroke", d => color_player(d.type))
+      .attr("stroke", node_color)
+      .attr("display", stem_display)
+      // .attr("visibility", d => d.shown ? "visible" : "hidden")
   
+  const link_stroke_muted = d => color_reaction_muted(d.type)
+  const link_marker_muted = d => `url(${new URL(`#arrow-${d.type}-muted`, location)})`
+  const node_color_muted = d => color_player_muted(d.type)
+  const mouseover = (event, d) => {
+    // console.log(d);
+    // tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
+
+    link
+      .attr("stroke", link_stroke_muted)
+      .attr("marker-end", link_marker_muted)
+    stem
+      .attr("stroke", node_color_muted)
+      .filter(dd => dd.target.id === d.id)
+        .raise()
+        .attr("stroke", node_color)
+        .attr("display", "unset")
+        // .attr("visibility", "visible")
+        // .attr("opacity", 1)
+    node.attr("fill", node_color_muted)
+    d3.select(event.currentTarget).attr("fill", node_color)
+  }
+  const mouseout = (event, d) => {
+    if (!dragging) {
+      link
+        .attr("stroke", link_stroke)
+        .attr("marker-end", link_marker)
+      stem
+        .attr("stroke", node_color)
+        .attr("display", stem_display)
+        // .attr("visibility", d => d.shown ? "visible" : "hidden")
+        // .attr("opacity", d => d.shown ? 1 : 0)
+      node.attr("fill", node_color)
+    }
+  }
+  const cx = d => bound_x(d.x)
+  const cy = d => bound_y(d.y)
   const node = svg.append("g")
     .selectAll("circle")
     .data(nodes)
     .join("circle")
       .classed("node", true)
-      .attr("fill", d => color_player(d.type))
-      .attr("cx", d => bound_x(d.x))
-      .attr("cy", d => bound_y(d.y))
+      .attr("fill", node_color)
+      .attr("cx", cx)
+      .attr("cy", cy)
       .call(drag())
-    .on("mouseover", (event, d) => {
-      // console.log(d);
-      tooltip.text(`${d.id}: ${d.name} (${thai_date_to_string(d.date)})`);
+    .on("mouseover", mouseover)
+    .on("mouseout", mouseout);
 
-      link
-        .attr("stroke", d => color_reaction_muted(d.value))
-        .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}-muted`, location)})`)
-      stem
-        .attr("stroke", d => color_player_muted(d.type))
-        .filter(dd => dd.target.id === d.id)
-          .raise()
-          .attr("stroke", d => color_player(d.type))
-          .attr("opacity", 1)
-      node.attr("fill", d => color_player_muted(d.type))
-      d3.select(event.currentTarget).attr("fill", d => color_player(d.type))
-    })
-    .on("mouseout", (event, d) => {
-      if (!dragging) {
-        link
-          .attr("stroke", d => color_reaction(d.value))
-          .attr("marker-end", d => `url(${new URL(`#arrow-${d.value}`, location)})`)
-        stem
-          .attr("stroke", d => color_player(d.type))
-          .attr("opacity", d => d.shown ? 1 : 0)
-        node.attr("fill", d => color_player(d.type))
-      }
-    });
-
-  // node.transition()
-  //   .delay((d, i) => i * 20)
-  //   .duration(2000)
-  //   .attrTween("r", d => {
-  //     const i = d3.interpolate(0, node_radius);
-  //     return t => i(t);
-  //   });
+  const delay = (d, i) => i*15 //time_x(d.date)*100
   link.attr("opacity", 0)
     .transition()
-    .delay((d, i) => i*15) //time_x(d.date)*100)
+    .delay(delay)
     .duration(1500)
     .attr("opacity", 1)
   stem.attr("opacity", 0)
     .transition()
-    .delay((d, i) => i*15) //time_x(d.date)*100)
+    .delay(delay)
     .duration(1500)
-    .attr("opacity", d => d.shown ? 1 : 0)
+    .attr("opacity", 1)
+    // .attr("opacity", d => d.shown ? 1 : 0)
   node.transition()
-    .delay((d, i) => i*15) //time_x(d.date)*100)
+    .delay(delay)
     .duration(1500)
     .attr("r", node_radius)
   
+  const d_arrow = d => `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(d.target.x)},${bound_y(d.target.y)}`
+  const d_stem = d3.linkVertical()
+    .source(d => d.source)
+    .target(d => d.target)
+    .x(d => bound_x(d.x))
+    .y(d => bound_y(d.y))
   simulation.on("tick", () => {
-    link
-      .attr("d", function(d) {
-        return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(d.target.x)},${bound_y(d.target.y)}`;
-      });
-    link
-      .attr("d", function(d) {
-        let m = this.getPointAtLength(this.getTotalLength() - node_radius);
-        return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(m.x, false)},${bound_y(m.y, false)}`;
-      });
+    link.attr("d", d_arrow)
+      // .attr("d", function(d) {
+      //   return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(d.target.x)},${bound_y(d.target.y)}`;
+      // });
+    // link
+    //   .attr("d", function(d) {
+    //     let m = this.getPointAtLength(this.getTotalLength() - node_radius);
+    //     return `M${bound_x(d.source.x)},${bound_y(d.source.y)} L${bound_x(m.x, false)},${bound_y(m.y, false)}`;
+    //   });
 
-    stem
-      .attr("d", d3.linkVertical()
-        .source(d => d.source)
-        .target(d => d.target)
-        .x(d => bound_x(d.x))
-        .y(d => bound_y(d.y))
-      );
+    stem.attr("d", d_stem);
   
     node
-      .attr("cx", d => bound_x(d.x))
-      .attr("cy", d => bound_y(d.y))
+      .attr("cx", cx)
+      .attr("cy", cy)
   });
 });
